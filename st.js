@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const qrcode = require('qrcode-terminal');
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 const { Boom } = require('@hapi/boom');
 
@@ -9,27 +10,33 @@ const PORT = process.env.PORT || 3000;
 let sock = null;
 let isConnected = false;
 
-app.use(bodyParser.json()); // For parsing JSON bodies
+app.use(bodyParser.json()); // Enable JSON body parsing
 
-// Connect to WhatsApp
+// Function to connect to WhatsApp
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState('baileys-auth');
 
   sock = makeWASocket({
     auth: state,
-    printQRInTerminal: true,
   });
 
   sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect } = update;
+    const { connection, qr, lastDisconnect } = update;
+
+    if (qr) {
+      console.log('📲 Scan this QR Code to log in:');
+      qrcode.generate(qr, { small: true });
+    }
 
     if (connection === 'close') {
       const shouldReconnect = (lastDisconnect?.error instanceof Boom) && lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut;
-
       isConnected = false;
-
-      console.log('❌ Connection closed. Reconnecting:', shouldReconnect);
-      if (shouldReconnect) connectToWhatsApp();
+      console.log('❌ Disconnected. Reconnecting:', shouldReconnect);
+      if (shouldReconnect) {
+        connectToWhatsApp();
+      } else {
+        console.log('🔒 Session expired. Please restart to scan QR again.');
+      }
     }
 
     if (connection === 'open') {
@@ -41,12 +48,12 @@ async function connectToWhatsApp() {
   sock.ev.on('creds.update', saveCreds);
 }
 
-// GET: /whatsapp-status
+// Route: Check WhatsApp connection status
 app.get('/whatsapp-status', (req, res) => {
   res.json({ status: isConnected ? 'connected' : 'disconnected' });
 });
 
-// POST: /send-message
+// Route: Send a WhatsApp message
 app.post('/send-message', async (req, res) => {
   if (!isConnected) {
     return res.status(503).json({ status: 'disconnected', error: 'WhatsApp is not connected' });
@@ -58,19 +65,19 @@ app.post('/send-message', async (req, res) => {
     return res.status(400).json({ error: 'Missing number or message' });
   }
 
-  const fullNumber = number.includes('@s.whatsapp.net') ? number : `${number}@s.whatsapp.net`;
+  const jid = number.includes('@s.whatsapp.net') ? number : `${number}@s.whatsapp.net`;
 
   try {
-    const sentMsg = await sock.sendMessage(fullNumber, { text: message });
-    res.json({ status: 'sent', id: sentMsg.key.id });
+    const sent = await sock.sendMessage(jid, { text: message });
+    res.json({ status: 'sent', id: sent.key.id });
   } catch (err) {
-    console.error('❌ Error sending message:', err);
+    console.error('❌ Failed to send message:', err);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
-// Start server and WhatsApp
+// Start server and connect to WhatsApp
 app.listen(PORT, () => {
-  console.log(`🟢 Server running on port ${PORT}`);
+  console.log(`🟢 Server running on http://localhost:${PORT}`);
   connectToWhatsApp();
 });
