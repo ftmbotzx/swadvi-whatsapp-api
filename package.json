@@ -1,26 +1,16 @@
 {
   "name": "swadvi-whatsapp-bot",
   "version": "1.0.0",
-  "description": "WhatsApp automation bot using Baileys and Express",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js"
   },
-  "keywords": [
-    "whatsapp",
-    "baileys",
-    "bot",
-    "api",
-    "express",
-    "termux"
-  ],
-  "author": "Swadvi Team",
-  "license": "MIT",
   "dependencies": {
-    "@hapi/boom": "^10.0.1",
-    "@whiskeysockets/baileys": "^6.7.0",
-    "body-parser": "^1.20.2",
-    "express": "^4.18.4",
-    "qrcode-terminal": "^0.12.0"
+    "@whiskeysockets/baileys": "^6.6.0",
+    "express": "^4.18.2",
+    "mongoose": "^7.6.3",
+    "qrcode-terminal": "^0.12.0",
+    "dotenv": "^16.3.1"
   }
 }
