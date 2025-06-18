@@ -1,83 +1,58 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const qrcode = require('qrcode-terminal');
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
-const { Boom } = require('@hapi/boom');
+import express from 'express';
+import mongoose from 'mongoose';
+import { makeWASocket, useSingleFileAuthState } from '@whiskeysockets/baileys';
+import qrcode from 'qrcode-terminal';
+import { saveState, getAuthState } from './mongoAuth.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+dotenv.config();
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const PORT = process.env.PORT || 3000;
+const port = 3000;
 
-let sock = null;
-let isConnected = false;
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
-app.use(bodyParser.json()); // Enable JSON body parsing
+mongoose.connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("✅ Connected to MongoDB Atlas");
+    startBot();
+  })
+  .catch(err => console.error("MongoDB Connection Error", err));
 
-// Function to connect to WhatsApp
-async function connectToWhatsApp() {
-  const { state, saveCreds } = await useMultiFileAuthState('baileys-auth');
+let sock;
+
+async function startBot() {
+  const { state, saveCreds } = await getAuthState();
 
   sock = makeWASocket({
     auth: state,
-  });
-
-  sock.ev.on('connection.update', (update) => {
-    const { connection, qr, lastDisconnect } = update;
-
-    if (qr) {
-      console.log('📲 Scan this QR Code to log in:');
-      qrcode.generate(qr, { small: true });
-    }
-
-    if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error instanceof Boom) && lastDisconnect.error.output.statusCode !== DisconnectReason.loggedOut;
-      isConnected = false;
-      console.log('❌ Disconnected. Reconnecting:', shouldReconnect);
-      if (shouldReconnect) {
-        connectToWhatsApp();
-      } else {
-        console.log('🔒 Session expired. Please restart to scan QR again.');
-      }
-    }
-
-    if (connection === 'open') {
-      isConnected = true;
-      console.log('✅ WhatsApp connected!');
-    }
+    printQRInTerminal: true
   });
 
   sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('connection.update', ({ connection, qr }) => {
+    if (qr) qrcode.generate(qr, { small: true });
+    if (connection === 'open') {
+      console.log("✅ WhatsApp Connected");
+    }
+  });
 }
 
-// Route: Check WhatsApp connection status
-app.get('/whatsapp-status', (req, res) => {
-  res.json({ status: isConnected ? 'connected' : 'disconnected' });
-});
-
-// Route: Send a WhatsApp message
 app.post('/send-message', async (req, res) => {
-  if (!isConnected) {
-    return res.status(503).json({ status: 'disconnected', error: 'WhatsApp is not connected' });
-  }
-
   const { number, message } = req.body;
-
-  if (!number || !message) {
-    return res.status(400).json({ error: 'Missing number or message' });
-  }
-
-  const jid = number.includes('@s.whatsapp.net') ? number : `${number}@s.whatsapp.net`;
+  const jid = number.includes('@s.whatsapp.net') ? number : number + '@s.whatsapp.net';
 
   try {
-    const sent = await sock.sendMessage(jid, { text: message });
-    res.json({ status: 'sent', id: sent.key.id });
+    await sock.sendMessage(jid, { text: message });
+    res.send({ status: 'success', message: 'Message sent!' });
   } catch (err) {
-    console.error('❌ Failed to send message:', err);
-    res.status(500).json({ error: 'Failed to send message' });
+    res.status(500).send({ status: 'error', error: err.toString() });
   }
 });
 
-// Start server and connect to WhatsApp
-app.listen(PORT, () => {
-  console.log(`🟢 Server running on http://localhost:${PORT}`);
-  connectToWhatsApp();
+app.listen(port, () => {
+  console.log(`🚀 Server running on http://localhost:${port}`);
 });
