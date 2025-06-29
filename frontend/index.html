@@ -2,25 +2,125 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Swadvi WhatsApp Sender</title>
+  <title>WhatsApp Web UI</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f4f4f4; }
-    input, textarea { width: 100%; padding: 10px; margin: 10px 0; }
-    button { padding: 10px 20px; background: green; color: white; border: none; }
+    body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
+    header { background: #075E54; color: white; padding: 1em; font-size: 18px; }
+    .container { max-width: 800px; margin: 1em auto; background: white; padding: 1em; border-radius: 8px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+    .section { margin-bottom: 2em; }
+    form { display: flex; flex-direction: column; gap: 0.5em; }
+    input, button { padding: 0.5em; font-size: 1em; }
+    button { background: #075E54; color: white; border: none; cursor: pointer; border-radius: 5px; }
+    button:hover { background: #064e44; }
+    .status { font-size: 0.9em; margin-top: 0.5em; }
+    .progress { height: 4px; background: #ccc; margin-top: 5px; border-radius: 4px; overflow: hidden; display: none; }
+    .progress-bar { height: 100%; width: 0%; background: #075E54; transition: width 0.3s ease; }
+    .success { color: green; }
+    .error { color: red; }
   </style>
 </head>
 <body>
-  <h1>📤 Swadvi WhatsApp Sender</h1>
-  <form id="messageForm">
-    <label>Mobile Number (with country code):</label>
-    <input type="text" id="number" placeholder="91xxxxxxxxxx" required />
-    <label>Message:</label>
-    <textarea id="message" placeholder="Your message here..." required></textarea>
-    <button type="submit">Send Message</button>
-  </form>
-  <p id="status"></p>
+  <header>
+    🟢 WhatsApp Web Bot UI — <span id="status">Checking...</span>
+    <a href="/qr" target="_blank" style="color:white; float:right;">Scan QR</a>
+  </header>
 
-  <script src="script.js"></script>
+  <div class="container">
+
+    <div class="section">
+      <h3>Send Text</h3>
+      <form id="textForm">
+        <input name="number" placeholder="Phone number e.g. 919999999999" required />
+        <input name="message" placeholder="Message" required />
+        <button type="submit">Send Text</button>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <div class="status" id="textStatus"></div>
+      </form>
+    </div>
+
+    <div class="section">
+      <h3>Send Image</h3>
+      <form id="imageForm" enctype="multipart/form-data">
+        <input name="number" placeholder="Phone number" required />
+        <input name="caption" placeholder="Caption" />
+        <input type="file" name="file" accept="image/*" required />
+        <button type="submit">Send Image</button>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <div class="status" id="imageStatus"></div>
+      </form>
+    </div>
+
+    <div class="section">
+      <h3>Send Document</h3>
+      <form id="docForm" enctype="multipart/form-data">
+        <input name="number" placeholder="Phone number" required />
+        <input name="caption" placeholder="Caption" />
+        <input type="file" name="file" required />
+        <button type="submit">Send Document</button>
+        <div class="progress"><div class="progress-bar"></div></div>
+        <div class="status" id="docStatus"></div>
+      </form>
+    </div>
+
+  </div>
+
+  <script>
+    async function loadStatus() {
+      const res = await fetch('/api/status');
+      const data = await res.json();
+      document.getElementById('status').textContent = data.status;
+    }
+
+    function setupForm(formId, apiUrl, statusId) {
+      const form = document.getElementById(formId);
+      const status = document.getElementById(statusId);
+      const progress = form.querySelector('.progress');
+      const progressBar = form.querySelector('.progress-bar');
+
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        status.textContent = '';
+        status.className = 'status';
+        progress.style.display = 'block';
+        progressBar.style.width = '30%';
+
+        let formData = new FormData(form);
+        let isJson = apiUrl.includes('send-text');
+        let options = {
+          method: 'POST',
+          body: isJson ? JSON.stringify(Object.fromEntries(formData)) : formData
+        };
+        if (isJson) options.headers = { 'Content-Type': 'application/json' };
+
+        try {
+          progressBar.style.width = '70%';
+          const res = await fetch(apiUrl, options);
+          progressBar.style.width = '100%';
+          if (res.ok) {
+            status.textContent = '✅ Message sent successfully!';
+            status.classList.add('success');
+          } else {
+            const error = await res.text();
+            status.textContent = `❌ Failed: ${error}`;
+            status.classList.add('error');
+          }
+        } catch (err) {
+          status.textContent = `❌ Error: ${err.message}`;
+          status.classList.add('error');
+        }
+
+        form.reset();
+        setTimeout(() => {
+          progress.style.display = 'none';
+          progressBar.style.width = '0%';
+        }, 1000);
+      };
+    }
+
+    loadStatus();
+    setupForm('textForm', '/api/send-text', 'textStatus');
+    setupForm('imageForm', '/api/send-image', 'imageStatus');
+    setupForm('docForm', '/api/send-document', 'docStatus');
+  </script>
 </body>
 </html>
