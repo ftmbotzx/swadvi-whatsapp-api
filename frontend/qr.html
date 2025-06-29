@@ -1,20 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>WhatsApp QR Code</title>
   <meta charset="UTF-8" />
-  <script>
-    async function loadQR() {
-      const res = await fetch('/api/qr');
-      const text = await res.text();
-      document.getElementById('qr').innerHTML = text;
+  <title>Scan WhatsApp QR</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      padding: 2em;
     }
-    setInterval(loadQR, 5000); // Refresh QR every 5 seconds
-    window.onload = loadQR;
-  </script>
+    img {
+      border: 5px solid #075E54;
+      border-radius: 10px;
+    }
+    .timer {
+      font-size: 18px;
+      margin-top: 10px;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
-  <h2>Scan QR to Login to WhatsApp</h2>
-  <div id="qr">Loading QR...</div>
+  <h2>📲 Scan the QR Code with WhatsApp</h2>
+  <img id="qrImage" src="/api/qr" width="300" />
+  <div class="timer">
+    ⏳ QR will refresh in <span id="countdown">90</span> seconds
+  </div>
+
+  <script>
+    let time = 90;
+    const countdown = document.getElementById('countdown');
+
+    const interval = setInterval(() => {
+      time--;
+      if (time <= 0) {
+        clearInterval(interval);
+        location.reload(); // Auto-refresh page after countdown
+      } else {
+        countdown.textContent = time;
+      }
+    }, 1000);
+  </script>
 </body>
 </html>
