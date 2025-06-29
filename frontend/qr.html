@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WhatsApp QR Code</title>
+  <meta charset="UTF-8" />
+  <script>
+    async function loadQR() {
+      const res = await fetch('/api/qr');
+      const text = await res.text();
+      document.getElementById('qr').innerHTML = text;
+    }
+    setInterval(loadQR, 5000); // Refresh QR every 5 seconds
+    window.onload = loadQR;
+  </script>
+</head>
+<body>
+  <h2>Scan QR to Login to WhatsApp</h2>
+  <div id="qr">Loading QR...</div>
+</body>
+</html>
