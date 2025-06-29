@@ -49,12 +49,17 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'frontend/index.html'));
 });
 
-app.get('/qr', (req, res) => {
-  if (qrBase64) {
-    res.send(`<img src="${qrBase64}" width="300" />`);
-  } else {
-    res.send('QR not ready. Refresh in a moment.');
+app.get('/qr', async (req, res) => {
+  if (!currentQR) {
+    return res.send('<h2>🤖 No QR Code available. Please wait or refresh.</h2>');
   }
+  const qrImage = await qrcode.toDataURL(currentQR);
+  res.send(`
+    <div style="text-align:center;">
+      <h2>📲 Scan this QR Code to login WhatsApp</h2>
+      <img src="${qrImage}" />
+    </div>
+  `);
 });
 
 app.get('/chat', (req, res) => {
