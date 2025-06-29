@@ -2,16 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Scan WhatsApp QR</title>
+  <title>WhatsApp QR Login</title>
   <style>
     body {
-      font-family: sans-serif;
-      text-align: center;
+      font-family: Arial, sans-serif;
       background: #f0f0f0;
+      text-align: center;
       padding: 2em;
     }
     img {
-      border: 5px solid #075E54;
+      border: 4px solid #075E54;
       border-radius: 10px;
     }
     .timer {
@@ -25,20 +25,19 @@
   <h2>📲 Scan the QR Code with WhatsApp</h2>
   <img id="qrImage" src="/api/qr" width="300" />
   <div class="timer">
-    ⏳ QR will refresh in <span id="countdown">90</span> seconds
+    ⏳ Refreshing QR in <span id="countdown">20</span> seconds
   </div>
 
   <script>
-    let time = 90;
+    let time = 20;
     const countdown = document.getElementById('countdown');
 
     const interval = setInterval(() => {
       time--;
+      countdown.textContent = time;
       if (time <= 0) {
         clearInterval(interval);
-        location.reload(); // Auto-refresh page after countdown
-      } else {
-        countdown.textContent = time;
+        location.reload(); // Refresh QR after 20 seconds
       }
     }, 1000);
   </script>
